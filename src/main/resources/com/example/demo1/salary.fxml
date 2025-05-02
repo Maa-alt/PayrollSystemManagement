@@ -21,21 +21,15 @@
 
             <!-- Row 0 -->
             <Label text="Employee:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-            <TextField fx:id="txtName" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-            <Label text="Basic Salary:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
-            <TextField fx:id="txtBasicSalary" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+            <ComboBox fx:id="comboEmployee" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+            <Label text="Month:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+            <ComboBox fx:id="comboMonth" prefWidth="150" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
 
             <!-- Row 1 -->
-            <Label text="Work Hours:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-            <TextField fx:id="txtWorkingHours" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-            <Label text="OT Hours:" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-            <TextField fx:id="txtOvertimeHours" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
-
-            <!-- Row 2 -->
-            <Label text="Month:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-            <ComboBox fx:id="comboMonth" prefWidth="150" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-            <Label text="Deductions:" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
-            <TextField fx:id="txtOtherDeductions" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
+            <Label text="OT Hours:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <TextField fx:id="txtOvertimeHours" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+            <Label text="Deductions:" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+            <TextField fx:id="txtOtherDeductions" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
         </GridPane>
 
         <!-- Calculation Summary -->

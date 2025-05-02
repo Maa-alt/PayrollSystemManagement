@@ -4,7 +4,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-
 import java.sql.*;
 
 public class EmployeeController {
@@ -139,15 +138,39 @@ public class EmployeeController {
     private void handleDelete() {
         Employee selected = employeeTable.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            if (showConfirmation("Are you sure you want to delete this employee?")) {
-                try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/vehiclerentalsystem", "root", "123456")) {
-                    String delete = "DELETE FROM employees WHERE employee_id=?";
-                    PreparedStatement stmt = conn.prepareStatement(delete);
+            if (showConfirmation("Are you sure you want to delete this employee and all associated payslips?")) {
+                try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/payrollsystem", "root", "123456")) {
+                    // Start transaction
+                    conn.setAutoCommit(false);
 
-                    stmt.setString(1, selected.getEmployeeId());
-                    stmt.executeUpdate();
-                    loadEmployeesFromDatabase();
-                    clearForm();
+                    try {
+                        // First delete related payslips
+                        String deletePayslips = "DELETE FROM payslips WHERE employee_id=?";
+                        PreparedStatement deletePayslipStmt = conn.prepareStatement(deletePayslips);
+                        deletePayslipStmt.setString(1, selected.getEmployeeId());
+                        deletePayslipStmt.executeUpdate();
+
+                        // Then delete the employee
+                        String deleteEmployee = "DELETE FROM employees WHERE employee_id=?";
+                        PreparedStatement deleteEmployeeStmt = conn.prepareStatement(deleteEmployee);
+                        deleteEmployeeStmt.setString(1, selected.getEmployeeId());
+                        int affectedRows = deleteEmployeeStmt.executeUpdate();
+
+                        if (affectedRows > 0) {
+                            conn.commit();
+                            loadEmployeesFromDatabase();
+                            clearForm();
+                            showAlert("Employee and associated payslips deleted successfully.");
+                        } else {
+                            conn.rollback();
+                            showAlert("Failed to delete employee.");
+                        }
+                    } catch (SQLException e) {
+                        conn.rollback();
+                        throw e;
+                    } finally {
+                        conn.setAutoCommit(true);
+                    }
                 } catch (SQLException e) {
                     e.printStackTrace();
                     showAlert("Database error: " + e.getMessage());

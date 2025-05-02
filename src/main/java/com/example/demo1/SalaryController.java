@@ -15,9 +15,8 @@ public class SalaryController {
     private static final double PENSION_RATE = 0.07;
 
     // FXML Components
-    @FXML private TextField txtName;
-    @FXML private TextField txtBasicSalary;
-    @FXML private TextField txtWorkingHours;
+    @FXML private ComboBox<Employee> comboEmployee;
+    @FXML private ComboBox<String> comboMonth;
     @FXML private TextField txtOvertimeHours;
     @FXML private TextField txtOtherDeductions;
     @FXML private Label lblHourlyRate;
@@ -31,7 +30,6 @@ public class SalaryController {
     @FXML private Label lblTotalDeductions;
     @FXML private Label lblNetSalary;
     @FXML private Label lblMonthlyTotal;
-    @FXML private ComboBox<String> comboMonth;
     @FXML private Button btnCalculate;
     @FXML private Button btnSave;
 
@@ -50,26 +48,26 @@ public class SalaryController {
     @FXML private TableColumn<SalaryRecord, Double> colNet;
 
     private ObservableList<SalaryRecord> salaryRecords = FXCollections.observableArrayList();
+    private ObservableList<Employee> employees = FXCollections.observableArrayList();
     private String userRole;
 
     @FXML
     public void initialize() {
         try {
-            // Verify FXML injection first
-            if (lblMonthlyTotal == null) {
-                throw new IllegalStateException("FXML components not properly injected. Check FXML file.");
-            }
-
             setupMonthComboBox();
             setupTableColumns();
+            loadEmployees();
 
-            // Test database connection
+            comboEmployee.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    // Update any fields if needed when employee changes
+                }
+            });
+
             try (Connection conn = DatabaseConnection.getConnection()) {
-                System.out.println("Database connection successful");
                 loadSalaryData();
             } catch (SQLException e) {
                 showAlert("Database Error", "Cannot connect to database: " + e.getMessage(), Alert.AlertType.ERROR);
-                return;
             }
 
             btnSave.setDisable(true);
@@ -79,6 +77,35 @@ public class SalaryController {
             }
         } catch (Exception e) {
             showAlert("Initialization Error", "Failed to initialize: " + e.getMessage(), Alert.AlertType.ERROR);
+            e.printStackTrace();
+        }
+    }
+
+    private void loadEmployees() {
+        String query = "SELECT * FROM employees";
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            employees.clear();
+            while (rs.next()) {
+                Employee employee = new Employee(
+                        rs.getString("employee_id"),
+                        rs.getString("name"),
+                        rs.getString("department"),
+                        rs.getString("position"),
+                        rs.getDouble("basic_salary"),
+                        rs.getInt("working_hours")
+                );
+                employees.add(employee);
+            }
+
+            comboEmployee.setItems(employees);
+            if (!employees.isEmpty()) {
+                comboEmployee.getSelectionModel().selectFirst();
+            }
+        } catch (SQLException e) {
+            showAlert("Database Error", "Failed to load employees: " + e.getMessage(), Alert.AlertType.ERROR);
             e.printStackTrace();
         }
     }
@@ -93,18 +120,14 @@ public class SalaryController {
     private void applyRolePermissions() {
         boolean isAdmin = "Admin".equalsIgnoreCase(userRole);
 
-        txtBasicSalary.setDisable(!isAdmin);
-        txtWorkingHours.setDisable(!isAdmin);
+        comboEmployee.setDisable(!isAdmin);
         txtOvertimeHours.setDisable(!isAdmin);
         txtOtherDeductions.setDisable(!isAdmin);
         btnSave.setDisable(!isAdmin);
         btnSave.setVisible(isAdmin);
 
         if (!isAdmin) {
-            txtName.setText("Current Employee");
-            txtName.setDisable(true);
-        } else {
-            txtName.setDisable(false);
+            // For non-admin, auto-select current employee if implemented
         }
     }
 
@@ -136,16 +159,14 @@ public class SalaryController {
         try {
             if (!validateInputs()) return;
 
-            double basicSalary = Double.parseDouble(txtBasicSalary.getText());
-            double workingHours = Double.parseDouble(txtWorkingHours.getText());
+            Employee selectedEmployee = comboEmployee.getValue();
+            double basicSalary = selectedEmployee.getBasicSalary();
+            double workingHours = selectedEmployee.getWorkingHours();
             double overtimeHours = Double.parseDouble(txtOvertimeHours.getText());
             double otherDeductions = txtOtherDeductions.getText().isEmpty() ? 0 :
                     Double.parseDouble(txtOtherDeductions.getText());
 
-            // Calculate all components
             CalculationResult result = calculateSalary(basicSalary, workingHours, overtimeHours, otherDeductions);
-
-            // Update UI
             updateCalculationLabels(result);
 
             if ("Admin".equalsIgnoreCase(userRole)) {
@@ -214,10 +235,10 @@ public class SalaryController {
     }
 
     private SalaryRecord createSalaryRecordFromInputs() {
-        String name = txtName.getText().trim();
+        Employee selectedEmployee = comboEmployee.getValue();
         String month = comboMonth.getValue();
-        double basicSalary = Double.parseDouble(txtBasicSalary.getText());
-        double workingHours = Double.parseDouble(txtWorkingHours.getText());
+        double basicSalary = selectedEmployee.getBasicSalary();
+        double workingHours = selectedEmployee.getWorkingHours();
         double overtimeHours = Double.parseDouble(txtOvertimeHours.getText());
         double otherDeductions = txtOtherDeductions.getText().isEmpty() ? 0 :
                 Double.parseDouble(txtOtherDeductions.getText());
@@ -225,23 +246,30 @@ public class SalaryController {
         CalculationResult result = calculateSalary(basicSalary, workingHours, overtimeHours, otherDeductions);
 
         return new SalaryRecord(
-                name, month, basicSalary, workingHours, overtimeHours,
-                result.grossSalary, result.tax, result.insurance, result.pension,
-                result.otherDeductions, result.totalDeductions, result.netSalary
+                selectedEmployee.getName(),
+                month,
+                basicSalary,
+                workingHours,
+                overtimeHours,
+                result.grossSalary,
+                result.tax,
+                result.insurance,
+                result.pension,
+                result.otherDeductions,
+                result.totalDeductions,
+                result.netSalary
         );
     }
 
     private boolean validateInputs() {
         try {
-            if (txtName.getText().trim().isEmpty()) {
-                throw new IllegalArgumentException("Employee name is required");
+            if (comboEmployee.getValue() == null) {
+                throw new IllegalArgumentException("Please select an employee");
             }
             if (comboMonth.getValue() == null) {
                 throw new IllegalArgumentException("Please select a month");
             }
 
-            validateNumericField(txtBasicSalary, "Basic salary", true);
-            validateNumericField(txtWorkingHours, "Working hours", false);
             validateNumericField(txtOvertimeHours, "Overtime hours", false);
 
             if (!txtOtherDeductions.getText().isEmpty()) {
@@ -325,14 +353,13 @@ public class SalaryController {
             updateMonthlyTotal();
 
         } catch (SQLException e) {
-            System.err.println("Database error loading salary data:");
+            showAlert("Database Error", "Failed to load salary data: " + e.getMessage(), Alert.AlertType.ERROR);
             e.printStackTrace();
-            throw new RuntimeException("Failed to load salary data", e);
         }
     }
 
     private void updateMonthlyTotal() {
-        if (comboMonth.getValue() != null && lblMonthlyTotal != null) {
+        if (comboMonth.getValue() != null) {
             double total = salaryRecords.stream()
                     .filter(r -> r.getMonth().equalsIgnoreCase(comboMonth.getValue()))
                     .mapToDouble(SalaryRecord::getNetSalary)
@@ -349,7 +376,6 @@ public class SalaryController {
         alert.showAndWait();
     }
 
-    // Helper class for calculation results
     private static class CalculationResult {
         final double hourlyRate;
         final double regularPay;
